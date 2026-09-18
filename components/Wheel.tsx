@@ -248,8 +248,9 @@ export default function Wheel({
               const start = i * segAngle;
               const end = start + segAngle;
               const mid = start + segAngle / 2;
-              const labelPos = polarToCartesian(cx, cy, r * 0.6, mid);
-              const iconPos = polarToCartesian(cx, cy, r * 0.85, mid);
+              const labelPos = polarToCartesian(cx, cy, r * 0.84, mid);
+              const iconPos = polarToCartesian(cx, cy, r * 0.5, mid);
+              const iconSize = 72;
               const lines = wrapLabel(seg.label);
 
               return (
@@ -259,17 +260,18 @@ export default function Wheel({
                   {seg.imageUrl ? (
                     <image
                       href={seg.imageUrl}
-                      x={iconPos.x - 16}
-                      y={iconPos.y - 16}
-                      width="32"
-                      height="32"
+                      x={iconPos.x - iconSize / 2}
+                      y={iconPos.y - iconSize / 2}
+                      width={iconSize}
+                      height={iconSize}
+                      preserveAspectRatio="xMidYMid slice"
                       transform={`rotate(${mid}, ${iconPos.x}, ${iconPos.y})`}
                     />
                   ) : (
                     <text
                       x={iconPos.x}
                       y={iconPos.y}
-                      fontSize="26"
+                      fontSize="46"
                       textAnchor="middle"
                       dominantBaseline="middle"
                       transform={`rotate(${mid}, ${iconPos.x}, ${iconPos.y})`}
