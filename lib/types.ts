@@ -9,3 +9,11 @@ export type Segment = {
   /** Relative win weight. Does not need to sum to 100 — normalized at spin time. */
   weight: number;
 };
+
+export type SiteSettings = {
+  brandName: string;
+  /** Hex color, e.g. "#B3121C". Drives the page background and wheel accent color. */
+  primaryColor: string;
+  /** Optional logo image URL/data URI. Empty string falls back to brandName text. */
+  logoUrl: string;
+};

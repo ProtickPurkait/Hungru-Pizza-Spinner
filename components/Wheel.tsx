@@ -41,7 +41,14 @@ function wrapLabel(label: string, maxCharsPerLine = 11): string[] {
   return lines;
 }
 
-export default function Wheel({ initialSegments }: { initialSegments: Segment[] }) {
+type WheelProps = {
+  initialSegments: Segment[];
+  primaryColor: string;
+  brandName: string;
+  logoUrl: string;
+};
+
+export default function Wheel({ initialSegments, primaryColor, brandName, logoUrl }: WheelProps) {
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState<Segment | null>(null);
@@ -105,13 +112,13 @@ export default function Wheel({ initialSegments }: { initialSegments: Segment[] 
             height: 0,
             borderLeft: '16px solid transparent',
             borderRight: '16px solid transparent',
-            borderTop: '26px solid #B3121C',
+            borderTop: `26px solid ${primaryColor}`,
             filter: 'drop-shadow(0 2px 2px rgba(0,0,0,0.45))',
           }}
         />
 
         <svg viewBox="0 0 400 400" className="absolute inset-0 z-10 h-full w-full pointer-events-none">
-          <circle cx="200" cy="200" r="196" fill="none" stroke="#B3121C" strokeWidth="18" />
+          <circle cx="200" cy="200" r="196" fill="none" stroke={primaryColor} strokeWidth="18" />
           {Array.from({ length: 24 }).map((_, i) => {
             const angle = (360 / 24) * i;
             const p = polarToCartesian(200, 200, 196, angle);
@@ -184,13 +191,22 @@ export default function Wheel({ initialSegments }: { initialSegments: Segment[] 
           onClick={handleSpin}
           disabled={spinning}
           aria-label="Spin the wheel"
-          className="absolute left-1/2 top-1/2 z-40 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border-4 border-white bg-[#B3121C] text-white shadow-lg disabled:opacity-90"
-          style={{ width: '23%', height: '23%' }}
+          className="absolute left-1/2 top-1/2 z-40 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border-4 border-white text-white shadow-lg disabled:opacity-90"
+          style={{ width: '23%', height: '23%', backgroundColor: primaryColor }}
         >
           <span className="text-base font-extrabold leading-none tracking-wide">
             {spinning ? '…' : 'SPIN'}
           </span>
-          <span className="mt-1 text-[8px] font-semibold leading-none opacity-90">Hungru Pizza</span>
+          {logoUrl ? (
+            <span className="mt-1 h-5 w-5 overflow-hidden rounded-full border border-white/70">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={logoUrl} alt="" className="h-full w-full object-cover" />
+            </span>
+          ) : (
+            <span className="mt-1 max-w-[85%] truncate text-center text-[8px] font-semibold leading-none opacity-90">
+              {brandName}
+            </span>
+          )}
         </button>
       </div>
 
