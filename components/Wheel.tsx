@@ -88,12 +88,15 @@ export default function Wheel({
   const [rotation, setRotation] = useState(0);
   const [transitionCss, setTransitionCss] = useState('none');
   const [spinning, setSpinning] = useState(false);
+  const [preSpinning, setPreSpinning] = useState(false);
   const [result, setResult] = useState<Segment | null>(null);
   const [resultKey, setResultKey] = useState(0);
   const [segments, setSegments] = useState<Segment[]>(initialSegments);
   const [errorMsg, setErrorMsg] = useState('');
   const rotationRef = useRef(0);
   const soundHandleRef = useRef<SpinSoundHandle | null>(null);
+  const wheelDivRef = useRef<HTMLDivElement | null>(null);
+  const preSpinTickRef = useRef<number | null>(null);
 
   const cx = 200;
   const cy = 200;
@@ -102,8 +105,33 @@ export default function Wheel({
   const segAngle = 360 / n;
 
   useEffect(() => {
-    return () => soundHandleRef.current?.cancel();
+    return () => {
+      soundHandleRef.current?.cancel();
+      if (preSpinTickRef.current) clearInterval(preSpinTickRef.current);
+    };
   }, []);
+
+  /** Reads the wheel's actual on-screen rotation (mod 360) while the CSS pre-spin loop is running. */
+  function getLiveRotationDeg(): number {
+    const el = wheelDivRef.current;
+    if (!el) return 0;
+    const transform = window.getComputedStyle(el).transform;
+    if (!transform || transform === 'none') return 0;
+    const match = transform.match(/^matrix\(([^)]+)\)$/);
+    if (!match) return 0;
+    const [a, b] = match[1].split(',').map((v) => parseFloat(v.trim()));
+    let angle = (Math.atan2(b, a) * 180) / Math.PI;
+    if (angle < 0) angle += 360;
+    return angle;
+  }
+
+  function stopPreSpin() {
+    if (preSpinTickRef.current) {
+      clearInterval(preSpinTickRef.current);
+      preSpinTickRef.current = null;
+    }
+    setPreSpinning(false);
+  }
 
   async function handleSpin() {
     if (spinning) return;
@@ -115,10 +143,22 @@ export default function Wheel({
     setResult(null);
     setErrorMsg('');
 
+    // Start spinning immediately, before the network round-trip, so the
+    // wheel never sits motionless waiting on the server — a looping CSS
+    // animation takes over until the real winning segment is known.
+    setPreSpinning(true);
+    preSpinTickRef.current = window.setInterval(() => playSingleTick(), 90);
+
     try {
       const res = await fetch('/api/spin', { method: 'POST' });
       if (!res.ok) throw new Error('Spin failed');
       const data = (await res.json()) as { winningIndex: number; segments: Segment[] };
+
+      // Capture exactly where the pre-spin loop left the wheel visually
+      // before swapping back to the transition-driven inline transform, so
+      // the handoff doesn't jump.
+      const liveAngle = getLiveRotationDeg();
+      stopPreSpin();
 
       const freshSegments = data.segments;
       const winningIndex = data.winningIndex;
@@ -129,7 +169,12 @@ export default function Wheel({
       const segmentCenter = winningIndex * anglePer + anglePer / 2;
       const targetAngle = (360 - segmentCenter) % 360;
       const jitter = (Math.random() - 0.5) * (anglePer * 0.5);
-      const current = rotationRef.current;
+
+      const baseAbsolute = rotationRef.current;
+      const baseMod = ((baseAbsolute % 360) + 360) % 360;
+      const turnsSincePreSpin = ((liveAngle - baseMod) + 360) % 360;
+      const current = baseAbsolute + turnsSincePreSpin;
+
       const normalizedCurrent = current % 360;
       const delta = ((targetAngle - normalizedCurrent) + 360) % 360;
       const extraSpins = 6;
@@ -137,71 +182,87 @@ export default function Wheel({
 
       rotationRef.current = finalRotation;
 
-      const reveal = () => {
-        setSpinning(false);
-        const winner = freshSegments[winningIndex];
-        setResult(winner);
-        setResultKey((k) => k + 1);
-        if (winner.id === 'betterluck') {
-          playLoseSound();
-        } else {
-          playWinSound();
-        }
-      };
+      // Snap the inline transform to the live pre-spin angle with no
+      // transition first, then let it paint, before starting the real
+      // deceleration transition — otherwise the browser would animate from
+      // whatever inline rotation was last set (stale, from before this spin).
+      setTransitionCss('none');
+      setRotation(current);
 
-      if (suspenseMode) {
-        const nearStopRotation = finalRotation - CREEP_GAP_DEG;
-
-        // Phase 1: fast spin decelerating to a near-stop, just short of the
-        // actual prize — the pause here is the first suspense beat.
-        setTransitionCss(`transform ${SUSPENSE_MAIN_DURATION_MS}ms ${SUSPENSE_MAIN_EASE}`);
-        setRotation(nearStopRotation);
-
-        soundHandleRef.current?.cancel();
-        soundHandleRef.current = playSpinSound({
-          durationMs: SUSPENSE_MAIN_DURATION_MS,
-          totalRotationDeg: nearStopRotation - current,
-          segmentAngleDeg: anglePer,
-          bezier: SUSPENSE_MAIN_BEZIER,
-        });
-
-        window.setTimeout(() => {
-          // Phase 2: held beat where the wheel looks fully stopped.
-          window.setTimeout(() => {
-            // Phase 3: one last slow creep the rest of the way to the prize.
-            const crossesBoundary =
-              Math.floor(nearStopRotation / anglePer) !== Math.floor(finalRotation / anglePer);
-            if (crossesBoundary) {
-              window.setTimeout(() => playSingleTick(), CREEP_DURATION_MS * 0.65);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const reveal = () => {
+            setSpinning(false);
+            const winner = freshSegments[winningIndex];
+            setResult(winner);
+            setResultKey((k) => k + 1);
+            if (winner.id === 'betterluck') {
+              playLoseSound();
+            } else {
+              playWinSound();
             }
+          };
 
-            setTransitionCss(`transform ${CREEP_DURATION_MS}ms ease-in-out`);
-            setRotation(finalRotation);
+          if (suspenseMode) {
+            const nearStopRotation = finalRotation - CREEP_GAP_DEG;
+
+            // Phase 1: fast spin decelerating to a near-stop, just short of the
+            // actual prize — the pause here is the first suspense beat.
+            setTransitionCss(`transform ${SUSPENSE_MAIN_DURATION_MS}ms ${SUSPENSE_MAIN_EASE}`);
+            setRotation(nearStopRotation);
+
+            soundHandleRef.current?.cancel();
+            soundHandleRef.current = playSpinSound({
+              durationMs: SUSPENSE_MAIN_DURATION_MS,
+              totalRotationDeg: nearStopRotation - current,
+              segmentAngleDeg: anglePer,
+              bezier: SUSPENSE_MAIN_BEZIER,
+            });
 
             window.setTimeout(() => {
-              // Phase 4: it has truly landed.
-              playLandingThunk();
-              // Phase 5: reveal, after one more held beat.
-              window.setTimeout(reveal, LANDING_PAUSE_MS);
-            }, CREEP_DURATION_MS);
-          }, SUSPENSE_HOLD_MS);
-        }, SUSPENSE_MAIN_DURATION_MS);
-      } else {
-        // Quick mode: one smooth spin straight to the prize, reveal immediately.
-        setTransitionCss(`transform ${QUICK_DURATION_MS}ms ${QUICK_EASE}`);
-        setRotation(finalRotation);
+              // Phase 2: held beat where the wheel looks fully stopped.
+              window.setTimeout(() => {
+                // Phase 3: one last slow creep the rest of the way to the prize.
+                const crossesBoundary =
+                  Math.floor(nearStopRotation / anglePer) !== Math.floor(finalRotation / anglePer);
+                if (crossesBoundary) {
+                  window.setTimeout(() => playSingleTick(), CREEP_DURATION_MS * 0.65);
+                }
 
-        soundHandleRef.current?.cancel();
-        soundHandleRef.current = playSpinSound({
-          durationMs: QUICK_DURATION_MS,
-          totalRotationDeg: finalRotation - current,
-          segmentAngleDeg: anglePer,
-          bezier: QUICK_BEZIER,
+                setTransitionCss(`transform ${CREEP_DURATION_MS}ms ease-in-out`);
+                setRotation(finalRotation);
+
+                window.setTimeout(() => {
+                  // Phase 4: it has truly landed.
+                  playLandingThunk();
+                  // Phase 5: reveal, after one more held beat.
+                  window.setTimeout(reveal, LANDING_PAUSE_MS);
+                }, CREEP_DURATION_MS);
+              }, SUSPENSE_HOLD_MS);
+            }, SUSPENSE_MAIN_DURATION_MS);
+          } else {
+            // Quick mode: one smooth spin straight to the prize, reveal immediately.
+            setTransitionCss(`transform ${QUICK_DURATION_MS}ms ${QUICK_EASE}`);
+            setRotation(finalRotation);
+
+            soundHandleRef.current?.cancel();
+            soundHandleRef.current = playSpinSound({
+              durationMs: QUICK_DURATION_MS,
+              totalRotationDeg: finalRotation - current,
+              segmentAngleDeg: anglePer,
+              bezier: QUICK_BEZIER,
+            });
+
+            window.setTimeout(reveal, QUICK_DURATION_MS + 100);
+          }
         });
-
-        window.setTimeout(reveal, QUICK_DURATION_MS + 100);
-      }
+      });
     } catch {
+      const liveAngle = getLiveRotationDeg();
+      stopPreSpin();
+      setTransitionCss('none');
+      setRotation(liveAngle);
+      rotationRef.current = liveAngle;
       setSpinning(false);
       setErrorMsg('Something went wrong. Please try again.');
     }
@@ -233,11 +294,16 @@ export default function Wheel({
         </svg>
 
         <div
-          className="absolute inset-0 z-20"
-          style={{
-            transform: `rotate(${rotation}deg)`,
-            transition: transitionCss,
-          }}
+          ref={wheelDivRef}
+          className={`absolute inset-0 z-20${preSpinning ? ' animate-wheel-prespin' : ''}`}
+          style={
+            preSpinning
+              ? undefined
+              : {
+                  transform: `rotate(${rotation}deg)`,
+                  transition: transitionCss,
+                }
+          }
         >
           <svg viewBox="0 0 400 400" className="h-full w-full">
             {segments.map((seg, i) => {

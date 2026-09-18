@@ -57,3 +57,13 @@ body {
 .animate-gentle-bounce {
   animation: gentle-bounce 1.4s ease-in-out infinite;
 }
+
+@keyframes wheel-prespin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-wheel-prespin {
+  animation: wheel-prespin 0.5s linear infinite;
+}
