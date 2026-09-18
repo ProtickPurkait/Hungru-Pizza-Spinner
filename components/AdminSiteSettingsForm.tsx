@@ -62,7 +62,7 @@ export default function AdminSiteSettingsForm({ initialSettings }: { initialSett
     setUploading(true);
     setUploadError('');
     try {
-      const dataUrl = await compressImageFile(file, 300);
+      const dataUrl = await compressImageFile(file, 300, { cropToContent: true });
       updateField('logoUrl', dataUrl);
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Could not process that image.');
