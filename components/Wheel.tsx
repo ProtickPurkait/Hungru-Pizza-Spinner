@@ -250,7 +250,7 @@ export default function Wheel({
               const mid = start + segAngle / 2;
               const labelPos = polarToCartesian(cx, cy, r * 0.84, mid);
               const iconPos = polarToCartesian(cx, cy, r * 0.5, mid);
-              const iconSize = 72;
+              const iconSize = 82;
               const lines = wrapLabel(seg.label);
 
               return (
@@ -264,7 +264,6 @@ export default function Wheel({
                       y={iconPos.y - iconSize / 2}
                       width={iconSize}
                       height={iconSize}
-                      preserveAspectRatio="xMidYMid slice"
                       transform={`rotate(${mid}, ${iconPos.x}, ${iconPos.y})`}
                     />
                   ) : (

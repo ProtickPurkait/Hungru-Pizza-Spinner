@@ -29,7 +29,7 @@ export default function AdminSegmentsForm({ initialSegments }: { initialSegments
     setUploadErrors((prev) => ({ ...prev, [index]: '' }));
 
     try {
-      const dataUrl = await compressImageFile(file);
+      const dataUrl = await compressImageFile(file, 400, { removeWhiteBackground: true });
       updateField(index, 'imageUrl', dataUrl);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Could not process that image.';
