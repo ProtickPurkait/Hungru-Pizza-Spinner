@@ -27,7 +27,6 @@ export default async function HomePage() {
         primaryColor={settings.primaryColor}
         accentColor={settings.accentColor}
         brandName={settings.brandName}
-        logoUrl={settings.logoUrl}
         suspenseMode={settings.suspenseMode}
       />
     </main>

@@ -77,7 +77,6 @@ type WheelProps = {
   primaryColor: string;
   accentColor: string;
   brandName: string;
-  logoUrl: string;
   suspenseMode: boolean;
 };
 
@@ -86,7 +85,6 @@ export default function Wheel({
   primaryColor,
   accentColor,
   brandName,
-  logoUrl,
   suspenseMode,
 }: WheelProps) {
   const [rotation, setRotation] = useState(0);
@@ -308,16 +306,9 @@ export default function Wheel({
           <span className="text-base font-extrabold leading-none tracking-wide">
             {spinning ? '…' : 'SPIN'}
           </span>
-          {logoUrl ? (
-            <span className="mt-1 h-5 w-5 overflow-hidden rounded-full border border-white/70">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={logoUrl} alt="" className="h-full w-full object-cover" />
-            </span>
-          ) : (
-            <span className="mt-1 max-w-[85%] truncate text-center text-[8px] font-semibold leading-none opacity-90">
-              {brandName}
-            </span>
-          )}
+          <span className="mt-1 max-w-[85%] truncate text-center text-[8px] font-semibold leading-none opacity-90">
+            {brandName}
+          </span>
         </button>
       </div>
 
