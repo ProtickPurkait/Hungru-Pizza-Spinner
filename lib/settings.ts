@@ -9,6 +9,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   secondaryColor: '#7A0D13',
   accentColor: '#400000',
   logoUrl: '',
+  suspenseMode: true,
 };
 
 export async function getSettings(): Promise<SiteSettings> {
@@ -24,6 +25,8 @@ export async function getSettings(): Promise<SiteSettings> {
     secondaryColor: raw.secondaryColor || DEFAULT_SETTINGS.secondaryColor,
     accentColor: raw.accentColor || DEFAULT_SETTINGS.accentColor,
     logoUrl: raw.logoUrl ?? DEFAULT_SETTINGS.logoUrl,
+    suspenseMode:
+      typeof raw.suspenseMode === 'boolean' ? raw.suspenseMode : DEFAULT_SETTINGS.suspenseMode,
   };
 }
 

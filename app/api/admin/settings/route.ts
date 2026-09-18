@@ -13,6 +13,7 @@ const SettingsSchema = z.object({
   secondaryColor: hexColor('Secondary color'),
   accentColor: hexColor('Accent color'),
   logoUrl: z.string().max(500_000).optional().default(''),
+  suspenseMode: z.boolean(),
 });
 
 export async function GET() {

@@ -13,16 +13,21 @@ import {
 } from '@/lib/spinSound';
 import ResultCelebration from '@/components/ResultCelebration';
 
-// A deliberately suspenseful multi-phase spin instead of one smooth slowdown:
-// fast spin -> long decelerate that stops just short of the prize -> a held
-// beat where it looks fully stopped -> one last slow creep into place.
-const MAIN_EASE = 'cubic-bezier(0.1, 0.85, 0.05, 1)';
-const MAIN_BEZIER: [number, number, number, number] = [0.1, 0.85, 0.05, 1];
-const SPIN_MAIN_DURATION_MS = 6000;
+// Suspense mode (admin-toggleable): fast spin -> long decelerate that stops
+// just short of the prize -> a held beat where it looks fully stopped ->
+// one last slow creep into place, instead of one smooth slowdown.
+const SUSPENSE_MAIN_EASE = 'cubic-bezier(0.1, 0.85, 0.05, 1)';
+const SUSPENSE_MAIN_BEZIER: [number, number, number, number] = [0.1, 0.85, 0.05, 1];
+const SUSPENSE_MAIN_DURATION_MS = 6000;
 const CREEP_GAP_DEG = 10;
 const SUSPENSE_HOLD_MS = 450;
 const CREEP_DURATION_MS = 900;
 const LANDING_PAUSE_MS = 500;
+
+// Quick mode: one smooth spin straight to the prize, no held pauses.
+const QUICK_EASE = 'cubic-bezier(0.12, 0.67, 0.1, 1)';
+const QUICK_BEZIER: [number, number, number, number] = [0.12, 0.67, 0.1, 1];
+const QUICK_DURATION_MS = 4500;
 
 const FALLBACK_ICON: Record<string, string> = {
   fries: '🍟',
@@ -73,9 +78,17 @@ type WheelProps = {
   accentColor: string;
   brandName: string;
   logoUrl: string;
+  suspenseMode: boolean;
 };
 
-export default function Wheel({ initialSegments, primaryColor, accentColor, brandName, logoUrl }: WheelProps) {
+export default function Wheel({
+  initialSegments,
+  primaryColor,
+  accentColor,
+  brandName,
+  logoUrl,
+  suspenseMode,
+}: WheelProps) {
   const [rotation, setRotation] = useState(0);
   const [transitionCss, setTransitionCss] = useState('none');
   const [spinning, setSpinning] = useState(false);
@@ -125,55 +138,73 @@ export default function Wheel({ initialSegments, primaryColor, accentColor, bran
       const delta = ((targetAngle - normalizedCurrent) + 360) % 360;
       const extraSpins = 6;
       const finalRotation = current + delta + extraSpins * 360 + jitter;
-      const nearStopRotation = finalRotation - CREEP_GAP_DEG;
 
       rotationRef.current = finalRotation;
 
-      // Phase 1: fast spin decelerating to a near-stop, just short of the
-      // actual prize — the pause here is the first suspense beat.
-      setTransitionCss(`transform ${SPIN_MAIN_DURATION_MS}ms ${MAIN_EASE}`);
-      setRotation(nearStopRotation);
+      const reveal = () => {
+        setSpinning(false);
+        const winner = freshSegments[winningIndex];
+        setResult(winner);
+        setResultKey((k) => k + 1);
+        if (winner.id === 'betterluck') {
+          playLoseSound();
+        } else {
+          playWinSound();
+        }
+      };
 
-      soundHandleRef.current?.cancel();
-      soundHandleRef.current = playSpinSound({
-        durationMs: SPIN_MAIN_DURATION_MS,
-        totalRotationDeg: nearStopRotation - current,
-        segmentAngleDeg: anglePer,
-        bezier: MAIN_BEZIER,
-      });
+      if (suspenseMode) {
+        const nearStopRotation = finalRotation - CREEP_GAP_DEG;
 
-      window.setTimeout(() => {
-        // Phase 2: held beat where the wheel looks fully stopped.
+        // Phase 1: fast spin decelerating to a near-stop, just short of the
+        // actual prize — the pause here is the first suspense beat.
+        setTransitionCss(`transform ${SUSPENSE_MAIN_DURATION_MS}ms ${SUSPENSE_MAIN_EASE}`);
+        setRotation(nearStopRotation);
+
+        soundHandleRef.current?.cancel();
+        soundHandleRef.current = playSpinSound({
+          durationMs: SUSPENSE_MAIN_DURATION_MS,
+          totalRotationDeg: nearStopRotation - current,
+          segmentAngleDeg: anglePer,
+          bezier: SUSPENSE_MAIN_BEZIER,
+        });
+
         window.setTimeout(() => {
-          // Phase 3: one last slow creep the rest of the way to the prize.
-          const crossesBoundary =
-            Math.floor(nearStopRotation / anglePer) !== Math.floor(finalRotation / anglePer);
-          if (crossesBoundary) {
-            window.setTimeout(() => playSingleTick(), CREEP_DURATION_MS * 0.65);
-          }
-
-          setTransitionCss(`transform ${CREEP_DURATION_MS}ms ease-in-out`);
-          setRotation(finalRotation);
-
+          // Phase 2: held beat where the wheel looks fully stopped.
           window.setTimeout(() => {
-            // Phase 4: it has truly landed.
-            playLandingThunk();
+            // Phase 3: one last slow creep the rest of the way to the prize.
+            const crossesBoundary =
+              Math.floor(nearStopRotation / anglePer) !== Math.floor(finalRotation / anglePer);
+            if (crossesBoundary) {
+              window.setTimeout(() => playSingleTick(), CREEP_DURATION_MS * 0.65);
+            }
+
+            setTransitionCss(`transform ${CREEP_DURATION_MS}ms ease-in-out`);
+            setRotation(finalRotation);
 
             window.setTimeout(() => {
+              // Phase 4: it has truly landed.
+              playLandingThunk();
               // Phase 5: reveal, after one more held beat.
-              setSpinning(false);
-              const winner = freshSegments[winningIndex];
-              setResult(winner);
-              setResultKey((k) => k + 1);
-              if (winner.id === 'betterluck') {
-                playLoseSound();
-              } else {
-                playWinSound();
-              }
-            }, LANDING_PAUSE_MS);
-          }, CREEP_DURATION_MS);
-        }, SUSPENSE_HOLD_MS);
-      }, SPIN_MAIN_DURATION_MS);
+              window.setTimeout(reveal, LANDING_PAUSE_MS);
+            }, CREEP_DURATION_MS);
+          }, SUSPENSE_HOLD_MS);
+        }, SUSPENSE_MAIN_DURATION_MS);
+      } else {
+        // Quick mode: one smooth spin straight to the prize, reveal immediately.
+        setTransitionCss(`transform ${QUICK_DURATION_MS}ms ${QUICK_EASE}`);
+        setRotation(finalRotation);
+
+        soundHandleRef.current?.cancel();
+        soundHandleRef.current = playSpinSound({
+          durationMs: QUICK_DURATION_MS,
+          totalRotationDeg: finalRotation - current,
+          segmentAngleDeg: anglePer,
+          bezier: QUICK_BEZIER,
+        });
+
+        window.setTimeout(reveal, QUICK_DURATION_MS + 100);
+      }
     } catch {
       setSpinning(false);
       setErrorMsg('Something went wrong. Please try again.');

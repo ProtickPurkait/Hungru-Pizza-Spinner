@@ -53,7 +53,7 @@ export default function AdminSiteSettingsForm({ initialSettings }: { initialSett
   const [uploadError, setUploadError] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  function updateField(field: keyof SiteSettings, value: string) {
+  function updateField<K extends keyof SiteSettings>(field: K, value: SiteSettings[K]) {
     setSettings((prev) => ({ ...prev, [field]: value }));
   }
 
@@ -170,6 +170,22 @@ export default function AdminSiteSettingsForm({ initialSettings }: { initialSett
           {uploadError && <p className="text-xs text-red-600">{uploadError}</p>}
         </div>
       </div>
+
+      <label className="flex items-start gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={settings.suspenseMode}
+          onChange={(e) => updateField('suspenseMode', e.target.checked)}
+          className="mt-0.5 h-4 w-4"
+        />
+        <span>
+          <span className="font-medium text-gray-700">Suspenseful spin</span>
+          <span className="block text-xs text-gray-400">
+            When on, the spin runs slower with a dramatic pause before landing. Turn off for a
+            quick, simple spin instead.
+          </span>
+        </span>
+      </label>
 
       <div className="flex items-center gap-3">
         <button

@@ -20,4 +20,6 @@ export type SiteSettings = {
   accentColor: string;
   /** Optional logo image URL/data URI. Empty string falls back to brandName text. */
   logoUrl: string;
+  /** When true, the spin runs a slower multi-phase "hold, creep, land" sequence for suspense. When false, it's one quick smooth spin. */
+  suspenseMode: boolean;
 };

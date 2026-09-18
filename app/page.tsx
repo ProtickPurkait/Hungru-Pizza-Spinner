@@ -28,6 +28,7 @@ export default async function HomePage() {
         accentColor={settings.accentColor}
         brandName={settings.brandName}
         logoUrl={settings.logoUrl}
+        suspenseMode={settings.suspenseMode}
       />
     </main>
   );
