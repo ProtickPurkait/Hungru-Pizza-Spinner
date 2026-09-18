@@ -13,6 +13,14 @@ const FADE_START = 225;
 const FADE_END = 245;
 const SATURATION_LIMIT = 22;
 
+// For content bounding-box detection only: real-world exports often have
+// near-black letterbox/margin bars (not just white), so bounding-box
+// detection treats low-saturation pixels at EITHER brightness extreme as
+// margin. This is deliberately not used for stripWhiteBackground, which
+// must only ever erase white — a black shadow or grill-mark on a product
+// photo should never be erased.
+const DARK_MARGIN_BRIGHTNESS = 30;
+
 type ImageSource = HTMLImageElement | HTMLCanvasElement;
 
 function readFileAsDataUrl(file: File): Promise<string> {
@@ -37,6 +45,14 @@ function isBackgroundPixel(r: number, g: number, b: number) {
   const brightness = (r + g + b) / 3;
   const saturation = Math.max(r, g, b) - Math.min(r, g, b);
   return saturation <= SATURATION_LIMIT && brightness >= FADE_START;
+}
+
+/** Broader than isBackgroundPixel: also treats near-black low-saturation pixels as margin. */
+function isMarginPixel(r: number, g: number, b: number) {
+  const saturation = Math.max(r, g, b) - Math.min(r, g, b);
+  if (saturation > SATURATION_LIMIT) return false;
+  const brightness = (r + g + b) / 3;
+  return brightness >= FADE_START || brightness <= DARK_MARGIN_BRIGHTNESS;
 }
 
 /** Makes near-white/gray pixels transparent in place, leaving colored subject pixels untouched. */
@@ -72,7 +88,7 @@ function findContentBoundingBox(ctx: CanvasRenderingContext2D, width: number, he
       const i = (y * width + x) * 4;
       const a = data[i + 3];
       if (a === 0) continue;
-      if (isBackgroundPixel(data[i], data[i + 1], data[i + 2])) continue;
+      if (isMarginPixel(data[i], data[i + 1], data[i + 2])) continue;
 
       if (x < minX) minX = x;
       if (x > maxX) maxX = x;
