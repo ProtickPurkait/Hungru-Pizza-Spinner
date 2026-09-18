@@ -1,7 +1,11 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Segment } from '@/lib/types';
+import { primeSpinAudio, playSpinSound, type SpinSoundHandle } from '@/lib/spinSound';
+import ResultCelebration from '@/components/ResultCelebration';
+
+const SPIN_DURATION_MS = 4500;
 
 const FALLBACK_ICON: Record<string, string> = {
   fries: '🍟',
@@ -14,7 +18,12 @@ const FALLBACK_ICON: Record<string, string> = {
 
 function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
   const rad = ((angleDeg - 90) * Math.PI) / 180;
-  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+  // Rounded to avoid SSR/CSR hydration mismatches from tiny floating-point
+  // differences in Math.cos/Math.sin between server and browser JS engines.
+  return {
+    x: Math.round((cx + r * Math.cos(rad)) * 1000) / 1000,
+    y: Math.round((cy + r * Math.sin(rad)) * 1000) / 1000,
+  };
 }
 
 function wedgePath(cx: number, cy: number, r: number, startAngle: number, endAngle: number) {
@@ -52,9 +61,11 @@ export default function Wheel({ initialSegments, primaryColor, brandName, logoUr
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState<Segment | null>(null);
+  const [resultKey, setResultKey] = useState(0);
   const [segments, setSegments] = useState<Segment[]>(initialSegments);
   const [errorMsg, setErrorMsg] = useState('');
   const rotationRef = useRef(0);
+  const soundHandleRef = useRef<SpinSoundHandle | null>(null);
 
   const cx = 200;
   const cy = 200;
@@ -62,8 +73,16 @@ export default function Wheel({ initialSegments, primaryColor, brandName, logoUr
   const n = segments.length;
   const segAngle = 360 / n;
 
+  useEffect(() => {
+    return () => soundHandleRef.current?.cancel();
+  }, []);
+
   async function handleSpin() {
     if (spinning) return;
+    // Must run synchronously in the click handler (before any await) so the
+    // browser treats the spin sound as user-initiated.
+    primeSpinAudio();
+
     setSpinning(true);
     setResult(null);
     setErrorMsg('');
@@ -91,10 +110,18 @@ export default function Wheel({ initialSegments, primaryColor, brandName, logoUr
       rotationRef.current = newRotation;
       setRotation(newRotation);
 
+      soundHandleRef.current?.cancel();
+      soundHandleRef.current = playSpinSound({
+        durationMs: SPIN_DURATION_MS,
+        totalRotationDeg: newRotation - current,
+        segmentAngleDeg: anglePer,
+      });
+
       window.setTimeout(() => {
         setSpinning(false);
         setResult(freshSegments[winningIndex]);
-      }, 4600);
+        setResultKey((k) => k + 1);
+      }, SPIN_DURATION_MS + 100);
     } catch {
       setSpinning(false);
       setErrorMsg('Something went wrong. Please try again.');
@@ -130,7 +157,7 @@ export default function Wheel({ initialSegments, primaryColor, brandName, logoUr
           className="absolute inset-0 z-20"
           style={{
             transform: `rotate(${rotation}deg)`,
-            transition: spinning ? 'transform 4.5s cubic-bezier(0.12,0.67,0.1,1)' : 'none',
+            transition: spinning ? `transform ${SPIN_DURATION_MS}ms cubic-bezier(0.12,0.67,0.1,1)` : 'none',
           }}
         >
           <svg viewBox="0 0 400 400" className="h-full w-full">
@@ -210,12 +237,8 @@ export default function Wheel({ initialSegments, primaryColor, brandName, logoUr
         </button>
       </div>
 
-      <div className="mt-6 h-8 text-center">
-        {result && !spinning && (
-          <p className="text-lg font-bold text-white">
-            {result.id === 'betterluck' ? 'Better luck next time!' : `You won: ${result.label}!`}
-          </p>
-        )}
+      <div className="relative mt-6 flex min-h-[90px] w-full flex-col items-center text-center">
+        <ResultCelebration result={!spinning ? result : null} resultKey={resultKey} />
         {errorMsg && <p className="text-sm text-red-200">{errorMsg}</p>}
       </div>
     </div>
