@@ -1,6 +1,6 @@
 # Hungru Pizza Spinner
 
-A QR-code prize wheel for Hungru Pizza. Customers scan a QR code on a table or receipt, spin the wheel, and win one of six prizes. A restaurant staff member controls the odds and prize content from a password-protected `/admin` panel — no code changes or redeploys needed.
+A QR-code prize wheel for Hungru Pizza Barasat. Customers scan a QR code on a table or receipt, spin the wheel, and win one of six prizes. A restaurant staff member controls the odds and prize content from a password-protected `/admin` panel — no code changes or redeploys needed.
 
 ## Tech Stack
 

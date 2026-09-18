@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 const SegmentSchema = z.object({
   id: z.string().min(1),
   label: z.string().min(1).max(60),
-  imageUrl: z.string().max(500).optional().default(''),
+  imageUrl: z.string().max(500_000).optional().default(''),
   color: z.string().min(1),
   weight: z.number().min(0).max(1000),
 });
