@@ -12,6 +12,7 @@ import {
   type SpinSoundHandle,
 } from '@/lib/spinSound';
 import ResultCelebration from '@/components/ResultCelebration';
+import { FALLBACK_ICON } from '@/lib/fallbackIcons';
 
 // Suspense mode (admin-toggleable): fast spin -> long decelerate that stops
 // just short of the prize -> a held beat where it looks fully stopped ->
@@ -28,15 +29,6 @@ const LANDING_PAUSE_MS = 500;
 const QUICK_EASE = 'cubic-bezier(0.12, 0.67, 0.1, 1)';
 const QUICK_BEZIER: [number, number, number, number] = [0.12, 0.67, 0.1, 1];
 const QUICK_DURATION_MS = 4500;
-
-const FALLBACK_ICON: Record<string, string> = {
-  fries: '🍟',
-  coke: '🥤',
-  sandwich: '🥪',
-  betterluck: '😕',
-  pizza: '🍕',
-  chicken: '🍗',
-};
 
 function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
   const rad = ((angleDeg - 90) * Math.PI) / 180;
@@ -373,8 +365,12 @@ export default function Wheel({
         </button>
       </div>
 
-      <div className="relative mt-6 flex min-h-[90px] w-full flex-col items-center text-center">
-        <ResultCelebration result={!spinning ? result : null} resultKey={resultKey} />
+      <div className="relative mt-6 flex min-h-[220px] w-full flex-col items-center text-center">
+        <ResultCelebration
+          result={!spinning ? result : null}
+          resultKey={resultKey}
+          primaryColor={primaryColor}
+        />
         {errorMsg && <p className="text-sm text-red-200">{errorMsg}</p>}
       </div>
     </div>

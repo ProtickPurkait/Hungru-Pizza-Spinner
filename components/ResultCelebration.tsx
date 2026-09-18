@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import type { Segment } from '@/lib/types';
+import { FALLBACK_ICON } from '@/lib/fallbackIcons';
 
 const CONFETTI_COLORS = ['#FFD966', '#7EC8E3', '#F4A9B0', '#A8D8A0', '#F5B87A', '#ffffff'];
 const CONFETTI_COUNT = 34;
@@ -14,6 +15,7 @@ const MOTIVATIONAL_MESSAGES = [
 ];
 
 type ConfettiPieceStyle = React.CSSProperties & Record<`--confetti-${string}`, string>;
+type GlowStyle = React.CSSProperties & { '--glow-color'?: string };
 
 function buildConfettiPieces(seed: number): ConfettiPieceStyle[] {
   // Simple deterministic PRNG seeded by resultKey so re-renders during the
@@ -43,9 +45,11 @@ function buildConfettiPieces(seed: number): ConfettiPieceStyle[] {
 export default function ResultCelebration({
   result,
   resultKey,
+  primaryColor,
 }: {
   result: Segment | null;
   resultKey: number;
+  primaryColor: string;
 }) {
   const pieces = useMemo(() => buildConfettiPieces(resultKey || 1), [resultKey]);
   const message = useMemo(
@@ -56,10 +60,31 @@ export default function ResultCelebration({
   if (!result) return null;
 
   const isWin = result.id !== 'betterluck';
+  const fallbackEmoji = FALLBACK_ICON[result.id] ?? (isWin ? '🎁' : '😕');
+
+  const imageCard = (
+    <div
+      className={`relative flex h-32 w-32 items-center justify-center rounded-3xl bg-white/15 p-3 backdrop-blur-sm ${
+        isWin ? 'animate-image-pop-in animate-glow-ring' : 'animate-sad-wobble'
+      }`}
+      style={isWin ? ({ '--glow-color': `${primaryColor}99` } as GlowStyle) : undefined}
+    >
+      {result.imageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={result.imageUrl}
+          alt={result.label}
+          className="h-full w-full object-contain drop-shadow-lg"
+        />
+      ) : (
+        <span className="text-6xl leading-none">{fallbackEmoji}</span>
+      )}
+    </div>
+  );
 
   if (isWin) {
     return (
-      <div key={resultKey} className="relative w-full">
+      <div key={resultKey} className="relative flex w-full flex-col items-center">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-40 overflow-visible">
           {pieces.map((style, i) => (
             <span
@@ -69,7 +94,8 @@ export default function ResultCelebration({
             />
           ))}
         </div>
-        <p className="animate-celebration-pop-in text-xl font-extrabold text-white drop-shadow">
+        {imageCard}
+        <p className="animate-celebration-pop-in mt-3 text-xl font-extrabold text-white drop-shadow">
           🎉 You won: {result.label}! 🎉
         </p>
       </div>
@@ -77,9 +103,10 @@ export default function ResultCelebration({
   }
 
   return (
-    <div key={resultKey} className="animate-celebration-pop-in flex flex-col items-center gap-1">
-      <span className="animate-gentle-bounce text-3xl">💪</span>
-      <p className="text-lg font-bold text-white">{message}</p>
+    <div key={resultKey} className="flex w-full flex-col items-center gap-2">
+      {imageCard}
+      <span className="animate-gentle-bounce text-2xl">💪</span>
+      <p className="animate-celebration-pop-in text-lg font-bold text-white">{message}</p>
     </div>
   );
 }
