@@ -4,6 +4,46 @@ import { useRef, useState } from 'react';
 import type { SiteSettings } from '@/lib/types';
 import { compressImageFile } from '@/lib/clientImage';
 
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+
+type ColorField = 'primaryColor' | 'secondaryColor' | 'accentColor';
+
+function ColorPicker({
+  label,
+  value,
+  fallback,
+  hint,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  fallback: string;
+  hint?: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="flex flex-col gap-1 text-sm">
+      <span className="font-medium text-gray-700">{label}</span>
+      <div className="flex items-center gap-2">
+        <input
+          type="color"
+          value={HEX_COLOR.test(value) ? value : fallback}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-9 w-9 shrink-0 rounded border p-0"
+          aria-label={`${label} picker`}
+        />
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full rounded border px-2 py-1"
+          placeholder={fallback}
+        />
+      </div>
+      {hint && <span className="text-xs text-gray-400">{hint}</span>}
+    </label>
+  );
+}
+
 export default function AdminSiteSettingsForm({ initialSettings }: { initialSettings: SiteSettings }) {
   const [settings, setSettings] = useState<SiteSettings>(initialSettings);
   const [saving, setSaving] = useState(false);
@@ -52,6 +92,12 @@ export default function AdminSiteSettingsForm({ initialSettings }: { initialSett
     }
   }
 
+  const colorFields: { field: ColorField; label: string; fallback: string; hint?: string }[] = [
+    { field: 'primaryColor', label: 'Primary color', fallback: '#B3121C', hint: 'Spin button, wheel rim & pointer.' },
+    { field: 'secondaryColor', label: 'Secondary color', fallback: '#7A0D13', hint: 'Middle of the background gradient.' },
+    { field: 'accentColor', label: 'Accent color', fallback: '#400000', hint: 'Gradient bottom & rim bulb dots.' },
+  ];
+
   return (
     <div className="space-y-4 rounded-xl bg-white p-4 shadow">
       <h2 className="text-lg font-bold">Site Branding</h2>
@@ -66,25 +112,16 @@ export default function AdminSiteSettingsForm({ initialSettings }: { initialSett
           />
         </label>
 
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium text-gray-700">Primary color</span>
-          <div className="flex items-center gap-2">
-            <input
-              type="color"
-              value={/^#[0-9a-fA-F]{6}$/.test(settings.primaryColor) ? settings.primaryColor : '#B3121C'}
-              onChange={(e) => updateField('primaryColor', e.target.value)}
-              className="h-9 w-9 shrink-0 rounded border p-0"
-              aria-label="Primary color picker"
-            />
-            <input
-              value={settings.primaryColor}
-              onChange={(e) => updateField('primaryColor', e.target.value)}
-              className="w-full rounded border px-2 py-1"
-              placeholder="#B3121C"
-            />
-          </div>
-          <span className="text-xs text-gray-400">Tip: pick a darker shade so white text stays readable.</span>
-        </label>
+        {colorFields.map(({ field, label, fallback, hint }) => (
+          <ColorPicker
+            key={field}
+            label={label}
+            value={settings[field]}
+            fallback={fallback}
+            hint={hint}
+            onChange={(value) => updateField(field, value)}
+          />
+        ))}
 
         <div className="flex flex-col gap-1 text-sm">
           <span className="font-medium text-gray-700">Logo</span>

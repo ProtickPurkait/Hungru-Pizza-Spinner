@@ -2,7 +2,13 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { Segment } from '@/lib/types';
-import { primeSpinAudio, playSpinSound, type SpinSoundHandle } from '@/lib/spinSound';
+import {
+  primeSpinAudio,
+  playSpinSound,
+  playWinSound,
+  playLoseSound,
+  type SpinSoundHandle,
+} from '@/lib/spinSound';
 import ResultCelebration from '@/components/ResultCelebration';
 
 const SPIN_DURATION_MS = 4500;
@@ -53,11 +59,12 @@ function wrapLabel(label: string, maxCharsPerLine = 11): string[] {
 type WheelProps = {
   initialSegments: Segment[];
   primaryColor: string;
+  accentColor: string;
   brandName: string;
   logoUrl: string;
 };
 
-export default function Wheel({ initialSegments, primaryColor, brandName, logoUrl }: WheelProps) {
+export default function Wheel({ initialSegments, primaryColor, accentColor, brandName, logoUrl }: WheelProps) {
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState<Segment | null>(null);
@@ -119,8 +126,14 @@ export default function Wheel({ initialSegments, primaryColor, brandName, logoUr
 
       window.setTimeout(() => {
         setSpinning(false);
-        setResult(freshSegments[winningIndex]);
+        const winner = freshSegments[winningIndex];
+        setResult(winner);
         setResultKey((k) => k + 1);
+        if (winner.id === 'betterluck') {
+          playLoseSound();
+        } else {
+          playWinSound();
+        }
       }, SPIN_DURATION_MS + 100);
     } catch {
       setSpinning(false);
@@ -149,7 +162,7 @@ export default function Wheel({ initialSegments, primaryColor, brandName, logoUr
           {Array.from({ length: 24 }).map((_, i) => {
             const angle = (360 / 24) * i;
             const p = polarToCartesian(200, 200, 196, angle);
-            return <circle key={i} cx={p.x} cy={p.y} r="5" fill="#FFD966" stroke="#7a0d13" strokeWidth="1" />;
+            return <circle key={i} cx={p.x} cy={p.y} r="5" fill={accentColor} stroke={primaryColor} strokeWidth="1" />;
           })}
         </svg>
 

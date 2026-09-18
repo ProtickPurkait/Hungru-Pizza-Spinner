@@ -4,11 +4,14 @@ import { getSettings, saveSettings } from '@/lib/settings';
 
 export const dynamic = 'force-dynamic';
 
+const hexColor = (label: string) =>
+  z.string().regex(/^#[0-9a-fA-F]{6}$/, `${label} must be a hex value like #B3121C`);
+
 const SettingsSchema = z.object({
   brandName: z.string().min(1).max(60),
-  primaryColor: z
-    .string()
-    .regex(/^#[0-9a-fA-F]{6}$/, 'Color must be a hex value like #B3121C'),
+  primaryColor: hexColor('Primary color'),
+  secondaryColor: hexColor('Secondary color'),
+  accentColor: hexColor('Accent color'),
   logoUrl: z.string().max(500_000).optional().default(''),
 });
 

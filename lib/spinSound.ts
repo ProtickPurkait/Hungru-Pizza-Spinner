@@ -105,3 +105,51 @@ export function playSpinSound(params: {
 
   return { cancel: () => timeouts.forEach(clearTimeout) };
 }
+
+function playNote(
+  ctx: AudioContext,
+  freq: number,
+  startOffset: number,
+  { type, peakGain, duration }: { type: OscillatorType; peakGain: number; duration: number }
+) {
+  const start = ctx.currentTime + startOffset;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(0.0001, start);
+  gain.gain.exponentialRampToValueAtTime(peakGain, start + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(start);
+  osc.stop(start + duration + 0.02);
+}
+
+/** Short cheerful ascending arpeggio, played the moment a real prize is shown. */
+export function playWinSound(): void {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  try {
+    const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+    notes.forEach((freq, i) => {
+      playNote(ctx, freq, i * 0.09, { type: 'triangle', peakGain: 0.22, duration: 0.28 });
+    });
+  } catch {
+    // Ignore — audio is a nice-to-have, never block the result over it.
+  }
+}
+
+/** Soft, gentle two-note dip — a neutral "try again" tone, not a harsh fail buzzer. */
+export function playLoseSound(): void {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  try {
+    const notes = [440, 349.23]; // A4 down to F4
+    notes.forEach((freq, i) => {
+      playNote(ctx, freq, i * 0.14, { type: 'sine', peakGain: 0.14, duration: 0.32 });
+    });
+  } catch {
+    // Ignore — audio is a nice-to-have, never block the result over it.
+  }
+}

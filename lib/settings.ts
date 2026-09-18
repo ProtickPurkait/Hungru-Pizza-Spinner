@@ -6,6 +6,8 @@ const SETTINGS_KEY = 'settings';
 export const DEFAULT_SETTINGS: SiteSettings = {
   brandName: 'Hungru Pizza Barasat',
   primaryColor: '#B3121C',
+  secondaryColor: '#7A0D13',
+  accentColor: '#400000',
   logoUrl: '',
 };
 
@@ -19,6 +21,8 @@ export async function getSettings(): Promise<SiteSettings> {
   return {
     brandName: raw.brandName || DEFAULT_SETTINGS.brandName,
     primaryColor: raw.primaryColor || DEFAULT_SETTINGS.primaryColor,
+    secondaryColor: raw.secondaryColor || DEFAULT_SETTINGS.secondaryColor,
+    accentColor: raw.accentColor || DEFAULT_SETTINGS.accentColor,
     logoUrl: raw.logoUrl ?? DEFAULT_SETTINGS.logoUrl,
   };
 }

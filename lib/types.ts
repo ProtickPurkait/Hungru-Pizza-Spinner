@@ -12,8 +12,12 @@ export type Segment = {
 
 export type SiteSettings = {
   brandName: string;
-  /** Hex color, e.g. "#B3121C". Drives the page background and wheel accent color. */
+  /** Hex color. Drives the SPIN button, wheel rim, and pointer. */
   primaryColor: string;
+  /** Hex color. Middle stop of the page background gradient. */
+  secondaryColor: string;
+  /** Hex color. Bottom stop of the background gradient and the wheel rim's bulb dots. */
+  accentColor: string;
   /** Optional logo image URL/data URI. Empty string falls back to brandName text. */
   logoUrl: string;
 };

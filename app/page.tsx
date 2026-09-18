@@ -1,6 +1,5 @@
 import { getSegments } from '@/lib/segments';
 import { getSettings } from '@/lib/settings';
-import { shadeHex } from '@/lib/color';
 import Wheel from '@/components/Wheel';
 
 export const dynamic = 'force-dynamic';
@@ -8,10 +7,7 @@ export const dynamic = 'force-dynamic';
 export default async function HomePage() {
   const [segments, settings] = await Promise.all([getSegments(), getSettings()]);
 
-  const background = `linear-gradient(to bottom, ${settings.primaryColor}, ${shadeHex(
-    settings.primaryColor,
-    -25
-  )}, ${shadeHex(settings.primaryColor, -45)})`;
+  const background = `linear-gradient(to bottom, ${settings.primaryColor}, ${settings.secondaryColor}, ${settings.accentColor})`;
 
   return (
     <main
@@ -26,7 +22,13 @@ export default async function HomePage() {
       )}
       <h1 className="mb-1 text-center text-2xl font-extrabold tracking-wide">{settings.brandName}</h1>
       <p className="mb-8 text-sm opacity-90">Spin the wheel &amp; win a prize!</p>
-      <Wheel initialSegments={segments} primaryColor={settings.primaryColor} brandName={settings.brandName} logoUrl={settings.logoUrl} />
+      <Wheel
+        initialSegments={segments}
+        primaryColor={settings.primaryColor}
+        accentColor={settings.accentColor}
+        brandName={settings.brandName}
+        logoUrl={settings.logoUrl}
+      />
     </main>
   );
 }
