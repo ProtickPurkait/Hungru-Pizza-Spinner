@@ -22,17 +22,49 @@ export function primeSpinAudio(): void {
   getAudioContext();
 }
 
-function playTick(ctx: AudioContext) {
+function playTick(ctx: AudioContext, freq = 720, peakGain = 0.15) {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
-  osc.type = 'square';
-  osc.frequency.value = 950;
-  gain.gain.setValueAtTime(0.16, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.045);
+  osc.type = 'triangle';
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(peakGain, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.065);
   osc.connect(gain);
   gain.connect(ctx.destination);
   osc.start();
-  osc.stop(ctx.currentTime + 0.05);
+  osc.stop(ctx.currentTime + 0.07);
+}
+
+/** A single tick, for moments outside the main scheduled sequence (e.g. the final creep). */
+export function playSingleTick(): void {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  try {
+    playTick(ctx, 820, 0.18);
+  } catch {
+    // Ignore — audio is a nice-to-have.
+  }
+}
+
+/** The soft "thunk" the wheel makes the moment it fully stops. */
+export function playLandingThunk(): void {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  try {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(190, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(90, ctx.currentTime + 0.18);
+    gain.gain.setValueAtTime(0.28, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.22);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.24);
+  } catch {
+    // Ignore — audio is a nice-to-have.
+  }
 }
 
 type Point = [number, number];
@@ -92,10 +124,15 @@ export function playSpinSound(params: {
     if (targetY > 1) break;
     const timeFraction = timeFractionForProgress(table, targetY);
     const delayMs = timeFraction * params.durationMs;
+    // Ticks rise in pitch and volume as the wheel nears the end — the last,
+    // slowest ticks land the most prominently, building suspense.
+    const progress = k / crossings;
+    const freq = 640 + progress * 260;
+    const peakGain = 0.11 + progress * 0.12;
     timeouts.push(
       setTimeout(() => {
         try {
-          playTick(ctx);
+          playTick(ctx, freq, peakGain);
         } catch {
           // Ignore — audio is a nice-to-have, never block the spin over it.
         }

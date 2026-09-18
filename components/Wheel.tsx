@@ -5,13 +5,24 @@ import type { Segment } from '@/lib/types';
 import {
   primeSpinAudio,
   playSpinSound,
+  playSingleTick,
+  playLandingThunk,
   playWinSound,
   playLoseSound,
   type SpinSoundHandle,
 } from '@/lib/spinSound';
 import ResultCelebration from '@/components/ResultCelebration';
 
-const SPIN_DURATION_MS = 4500;
+// A deliberately suspenseful multi-phase spin instead of one smooth slowdown:
+// fast spin -> long decelerate that stops just short of the prize -> a held
+// beat where it looks fully stopped -> one last slow creep into place.
+const MAIN_EASE = 'cubic-bezier(0.1, 0.85, 0.05, 1)';
+const MAIN_BEZIER: [number, number, number, number] = [0.1, 0.85, 0.05, 1];
+const SPIN_MAIN_DURATION_MS = 6000;
+const CREEP_GAP_DEG = 10;
+const SUSPENSE_HOLD_MS = 450;
+const CREEP_DURATION_MS = 900;
+const LANDING_PAUSE_MS = 500;
 
 const FALLBACK_ICON: Record<string, string> = {
   fries: '🍟',
@@ -66,6 +77,7 @@ type WheelProps = {
 
 export default function Wheel({ initialSegments, primaryColor, accentColor, brandName, logoUrl }: WheelProps) {
   const [rotation, setRotation] = useState(0);
+  const [transitionCss, setTransitionCss] = useState('none');
   const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState<Segment | null>(null);
   const [resultKey, setResultKey] = useState(0);
@@ -112,29 +124,56 @@ export default function Wheel({ initialSegments, primaryColor, accentColor, bran
       const normalizedCurrent = current % 360;
       const delta = ((targetAngle - normalizedCurrent) + 360) % 360;
       const extraSpins = 6;
-      const newRotation = current + delta + extraSpins * 360 + jitter;
+      const finalRotation = current + delta + extraSpins * 360 + jitter;
+      const nearStopRotation = finalRotation - CREEP_GAP_DEG;
 
-      rotationRef.current = newRotation;
-      setRotation(newRotation);
+      rotationRef.current = finalRotation;
+
+      // Phase 1: fast spin decelerating to a near-stop, just short of the
+      // actual prize — the pause here is the first suspense beat.
+      setTransitionCss(`transform ${SPIN_MAIN_DURATION_MS}ms ${MAIN_EASE}`);
+      setRotation(nearStopRotation);
 
       soundHandleRef.current?.cancel();
       soundHandleRef.current = playSpinSound({
-        durationMs: SPIN_DURATION_MS,
-        totalRotationDeg: newRotation - current,
+        durationMs: SPIN_MAIN_DURATION_MS,
+        totalRotationDeg: nearStopRotation - current,
         segmentAngleDeg: anglePer,
+        bezier: MAIN_BEZIER,
       });
 
       window.setTimeout(() => {
-        setSpinning(false);
-        const winner = freshSegments[winningIndex];
-        setResult(winner);
-        setResultKey((k) => k + 1);
-        if (winner.id === 'betterluck') {
-          playLoseSound();
-        } else {
-          playWinSound();
-        }
-      }, SPIN_DURATION_MS + 100);
+        // Phase 2: held beat where the wheel looks fully stopped.
+        window.setTimeout(() => {
+          // Phase 3: one last slow creep the rest of the way to the prize.
+          const crossesBoundary =
+            Math.floor(nearStopRotation / anglePer) !== Math.floor(finalRotation / anglePer);
+          if (crossesBoundary) {
+            window.setTimeout(() => playSingleTick(), CREEP_DURATION_MS * 0.65);
+          }
+
+          setTransitionCss(`transform ${CREEP_DURATION_MS}ms ease-in-out`);
+          setRotation(finalRotation);
+
+          window.setTimeout(() => {
+            // Phase 4: it has truly landed.
+            playLandingThunk();
+
+            window.setTimeout(() => {
+              // Phase 5: reveal, after one more held beat.
+              setSpinning(false);
+              const winner = freshSegments[winningIndex];
+              setResult(winner);
+              setResultKey((k) => k + 1);
+              if (winner.id === 'betterluck') {
+                playLoseSound();
+              } else {
+                playWinSound();
+              }
+            }, LANDING_PAUSE_MS);
+          }, CREEP_DURATION_MS);
+        }, SUSPENSE_HOLD_MS);
+      }, SPIN_MAIN_DURATION_MS);
     } catch {
       setSpinning(false);
       setErrorMsg('Something went wrong. Please try again.');
@@ -170,7 +209,7 @@ export default function Wheel({ initialSegments, primaryColor, accentColor, bran
           className="absolute inset-0 z-20"
           style={{
             transform: `rotate(${rotation}deg)`,
-            transition: spinning ? `transform ${SPIN_DURATION_MS}ms cubic-bezier(0.12,0.67,0.1,1)` : 'none',
+            transition: transitionCss,
           }}
         >
           <svg viewBox="0 0 400 400" className="h-full w-full">
