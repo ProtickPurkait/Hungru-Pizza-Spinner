@@ -76,7 +76,6 @@ type WheelProps = {
   initialSegments: Segment[];
   primaryColor: string;
   accentColor: string;
-  brandName: string;
   suspenseMode: boolean;
 };
 
@@ -84,7 +83,6 @@ export default function Wheel({
   initialSegments,
   primaryColor,
   accentColor,
-  brandName,
   suspenseMode,
 }: WheelProps) {
   const [rotation, setRotation] = useState(0);
@@ -305,9 +303,6 @@ export default function Wheel({
         >
           <span className="text-base font-extrabold leading-none tracking-wide">
             {spinning ? '…' : 'SPIN'}
-          </span>
-          <span className="mt-1 max-w-[85%] truncate text-center text-[8px] font-semibold leading-none opacity-90">
-            {brandName}
           </span>
         </button>
       </div>

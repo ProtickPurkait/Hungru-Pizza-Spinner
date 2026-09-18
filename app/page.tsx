@@ -26,7 +26,6 @@ export default async function HomePage() {
         initialSegments={segments}
         primaryColor={settings.primaryColor}
         accentColor={settings.accentColor}
-        brandName={settings.brandName}
         suspenseMode={settings.suspenseMode}
       />
     </main>
